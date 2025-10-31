@@ -1,49 +1,68 @@
-import os
 import streamlit as st
 from dotenv import load_dotenv
-from src.vectordb import VectorDB
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.chat_models import ChatGoogleGenerativeAI
+from src.vectordb import VectorDB  # your local vector store helper
 
-# Load API Key
+# Load environment variables
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY")
+
+# Streamlit page setup
+st.set_page_config(page_title="Africa Knowledge RAG", page_icon="🌍")
+st.title("🌍 Africa RAG Project - v1")
+st.write("A retrieval-augmented AI model for African data sources.")
+
+# Load your Google API Key
+api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
-    st.error("🚨 Please set your GOOGLE_API_KEY in Streamlit Secrets before running.")
+    st.error("❌ GOOGLE_API_KEY not found in environment variables.")
     st.stop()
 
-# Initialize LLM (Gemini)
+# Initialize Model
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
 
-# Initialize Vector DB and auto-load datasets
-st.set_page_config(page_title="Africa RAG Assistant 🌍", layout="wide")
-st.title("🌍 Africa RAG Assistant (ReadyTensor Project 1)")
-st.write("An AI assistant trained on African datasets — built with Gemini API and ChromaDB.")
+# Load VectorDB
+try:
+    vectordb = VectorDB()
+except Exception as e:
+    st.error(f"Error loading vector database: {e}")
+    st.stop()
 
-vdb = VectorDB()
-if not vdb.has_data():
-    with st.spinner("🧠 Loading African datasets from Hugging Face... (first time only)"):
-        vdb.ingest_african_datasets()
-    st.success("✅ African datasets successfully loaded into vector DB!")
+# User input
+query = st.text_input("Ask your question about Africa 🌍:")
 
-# Chat interface
-query = st.text_input("💬 Ask about Africa:", placeholder="e.g. Explain ECOWAS role in West Africa")
-if query:
-    with st.spinner("🔎 Retrieving context..."):
-        results = vdb.search(query, n_results=4)
-        context = "\n".join(results["documents"])
+if st.button("Search") and query:
+    with st.spinner("Thinking..."):
+        try:
+            # Retrieve documents
+            docs = vectordb.similarity_search(query, k=3)
+            context = "\n\n".join([d.page_content for d in docs])
 
-    prompt_template = ChatPromptTemplate.from_template(
-        "You are an expert on African development and culture. "
-        "Use the following context to answer clearly and factually.\n\nContext:\n{context}\n\nQuestion:\n{question}"
-    )
-    prompt = prompt_template.format(context=context, question=query)
+            # Build prompt
+            prompt = ChatPromptTemplate.from_template(
+                """
+                You are an AI assistant specialized in African research and context.
+                Use the provided context to answer concisely and clearly.
 
-    with st.spinner("🤖 Thinking..."):
-        response = llm.predict(prompt)
+                Context:
+                {context}
 
-    st.markdown("### 🧠 Answer")
-    st.write(response)
-    st.markdown("---")
-    st.markdown("### 📚 Context Used")
-    st.text(context)
+                Question:
+                {question}
+                """
+            )
+
+            chain_input = {"context": context, "question": query}
+            formatted_prompt = prompt.format(**chain_input)
+            response = llm.invoke(formatted_prompt)
+
+            st.success("✅ Answer:")
+            st.write(response.content)
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+
+# Footer
+st.markdown("---")
+st.caption("Developed with ❤️ for the Africa RAG Project v1")

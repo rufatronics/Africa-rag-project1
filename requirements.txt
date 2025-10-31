@@ -1,7 +1,10 @@
+langchain==0.2.10
+langchain-core==0.2.23
+langchain-community==0.2.7
+langchain-google-genai==1.0.5
+chromadb==0.5.3
 streamlit
-chromadb
-langchain
-sentence-transformers
 python-dotenv
 google-generativeai
-datasets
+sentence-transformers
+tiktoken

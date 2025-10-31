@@ -7,8 +7,12 @@ from datasets import load_dataset
 class VectorDB:
     def __init__(self):
         self.client = chromadb.Client()
-        self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-        self.collection = self.client.get_or_create_collection("africa_rag", embedding_function=self.embedding_model)
+        self.embedding_model = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2"
+        )
+        self.collection = self.client.get_or_create_collection(
+            "africa_rag", embedding_function=self.embedding_model
+        )
 
     def chunk_text(self, text: str, chunk_size: int = 300) -> List[str]:
         words = text.split()
@@ -18,7 +22,11 @@ class VectorDB:
         for i, doc in enumerate(documents):
             chunks = self.chunk_text(doc["content"])
             ids = [f"chunk_{i}_{j}" for j in range(len(chunks))]
-            self.collection.add(documents=chunks, ids=ids, metadatas=[doc.get("metadata", {})]*len(chunks))
+            self.collection.add(
+                documents=chunks,
+                ids=ids,
+                metadatas=[doc.get("metadata", {})] * len(chunks)
+            )
 
     def has_data(self) -> bool:
         try:
@@ -50,4 +58,8 @@ class VectorDB:
             "documents": results["documents"][0],
             "metadatas": results["metadatas"][0],
             "ids": results["ids"][0]
-                                     }
+        }
+
+    # Alias for compatibility
+    def similarity_search(self, query: str, k: int = 3):
+        return self.search(query, n_results=k)

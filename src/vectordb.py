@@ -1,8 +1,11 @@
 import os
+os.environ["ANONYMIZED_TELEMETRY"] = "false"  # Disable Chroma telemetry logs
+
 import chromadb
 from chromadb.utils import embedding_functions
 from typing import List, Dict, Any
 from datasets import load_dataset
+
 
 class VectorDB:
     def __init__(self):
@@ -52,14 +55,9 @@ class VectorDB:
                 print(f"⚠️ Skipped {name}: {e}")
         self.add_documents(documents)
 
-    def search(self, query: str, n_results: int = 3) -> Dict[str, Any]:
+    def similarity_search(self, query: str, n_results: int = 3) -> List[Any]:
         results = self.collection.query(query_texts=[query], n_results=n_results)
-        return {
-            "documents": results["documents"][0],
-            "metadatas": results["metadatas"][0],
-            "ids": results["ids"][0]
-        }
-
-    # Alias for compatibility
-    def similarity_search(self, query: str, k: int = 3):
-        return self.search(query, n_results=k)
+        return [
+            {"page_content": doc, "metadata": meta}
+            for doc, meta in zip(results["documents"][0], results["metadatas"][0])
+                 ]
